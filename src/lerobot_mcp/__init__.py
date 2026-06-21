@@ -1,4 +1,4 @@
-"""MCP server helpers for Hugging Face LeRobot."""
+"""MCP server helpers for LeRobot."""
 
 from importlib.metadata import PackageNotFoundError, version
 

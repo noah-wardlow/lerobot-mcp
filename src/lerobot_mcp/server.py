@@ -48,7 +48,7 @@ MANAGER = ProcessManager()
 
 mcp = FastMCP(
     "LeRobot MCP",
-    instructions="""Run and inspect Hugging Face LeRobot workflows.
+    instructions="""Run and inspect LeRobot workflows.
 
 Prefer dry-run tools before long-running robotics commands. Hardware commands can move real robots; ask the
 user for the intended robot, ports, and workspace before running record, replay, teleoperate, calibrate,

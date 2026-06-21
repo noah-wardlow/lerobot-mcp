@@ -1,11 +1,9 @@
 # lerobot-mcp
 
-Typed MCP server for Hugging Face LeRobot workflows.
+MCP server for LeRobot workflows.
 
 `lerobot-mcp` gives MCP clients a structured, auditable interface over the current LeRobot CLI,
-examples, source registries, datasets, and dataset conversion workflows. It is designed to follow
-LeRobot `main`: commands are discovered from LeRobot's `pyproject.toml` and installed entry points
-instead of being hardcoded.
+examples, source registries, datasets, and dataset conversion workflows.
 
 ## Features
 
@@ -16,14 +14,14 @@ instead of being hardcoded.
 - Build dry-run LeRobot commands from structured MCP arguments.
 - Run LeRobot commands as foreground calls or managed background jobs.
 - Inspect LeRobot dataset metadata without importing heavy robotics dependencies at MCP startup.
-- Use Hugging Face Hub auth from your existing environment.
+- Optionally use Hub auth from your existing environment.
 - Convert robotics datasets with Forge pinned to a known bug-fix commit on `main`.
 - Search Hugging Face and Forge-registry datasets by robot, format, task, size, episode count, and
   compatibility hints.
 
 ## Install
 
-From PyPI, once published:
+From PyPI:
 
 ```bash
 uv tool install lerobot-mcp
@@ -254,11 +252,31 @@ uv build
 
 ## Publishing
 
+This repo is set up for PyPI Trusted Publishing from GitHub Actions. Configure this pending publisher
+on PyPI:
+
+| Field | Value |
+| --- | --- |
+| PyPI Project Name | `lerobot-mcp` |
+| Owner | `noah-wardlow` |
+| Repository name | `lerobot-mcp` |
+| Workflow name | `publish.yml` |
+| Environment name | `pypi` |
+
 Before publishing a release:
 
 1. Update `version` in `pyproject.toml`.
 2. Run `uv run ruff check .`, `uv run mypy`, and `uv run pytest -vv`.
 3. Run `uv build`.
-4. Upload with your chosen PyPI workflow, preferably trusted publishing from GitHub Actions.
+4. Commit and push the version change.
+5. Tag and push the release:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The `publish.yml` workflow publishes on `v*` tag pushes. It also supports manual `workflow_dispatch`
+after the matching PyPI trusted publisher is configured.
 
 This repository is Apache-2.0 licensed.
