@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Literal
 
@@ -10,6 +11,7 @@ from lerobot_mcp.config import (
     FORGE_GIT_URL,
     FORGE_UV_SPEC,
     LEROBOT_GIT_URL,
+    ServerConfig,
     discover_project_scripts,
     install_or_update_lerobot,
     load_config,
@@ -53,9 +55,33 @@ mcp = FastMCP(
 Prefer dry-run tools before long-running robotics commands. Hardware commands can move real robots; ask the
 user for the intended robot, ports, and workspace before running record, replay, teleoperate, calibrate,
 setup-motors, or find-joint-limits. This server only executes LeRobot entry points discovered from the
-configured checkout, scripts inside LeRobot examples, and pinned Forge commands for dataset conversion.
+configured checkout, scripts inside LeRobot examples, and dataset conversion helpers.
 """,
 )
+
+
+def _auto_setup_enabled() -> bool:
+    return os.getenv("LEROBOT_MCP_AUTO_SETUP", "1").lower() not in {"0", "false", "no"}
+
+
+def _lerobot_config() -> ServerConfig:
+    global CONFIG
+    CONFIG = load_config()
+    if CONFIG.lerobot_root is not None or not _auto_setup_enabled():
+        return CONFIG
+    result = install_or_update_lerobot(
+        timeout_seconds=int(os.getenv("LEROBOT_MCP_AUTO_SETUP_TIMEOUT", "900")),
+        setup_environment=True,
+        python=CONFIG.lerobot_python,
+        extras=CONFIG.default_lerobot_extras,
+    )
+    if result.get("returncode") != 0:
+        setup = result.get("environment_setup")
+        setup_stderr = setup.get("stderr", "") if isinstance(setup, dict) else ""
+        stderr = str(result.get("stderr") or setup_stderr or "unknown error")
+        raise RuntimeError(f"Could not prepare managed LeRobot checkout: {stderr}")
+    CONFIG = load_config()
+    return CONFIG
 
 
 @mcp.tool()
@@ -70,6 +96,7 @@ def lerobot_server_config() -> dict[str, Any]:
         "can_use_uv": CONFIG.can_use_uv,
         "lerobot_python": CONFIG.lerobot_python,
         "default_lerobot_extras": list(CONFIG.default_lerobot_extras),
+        "auto_setup": _auto_setup_enabled(),
         "managed_lerobot_root": str(managed_lerobot_root()),
         "lerobot_git_url": LEROBOT_GIT_URL,
         "forge_git_url": FORGE_GIT_URL,
@@ -106,7 +133,8 @@ def lerobot_install_or_update_lerobot(
 @mcp.tool()
 def lerobot_list_commands() -> dict[str, Any]:
     """List supported command names and discovered LeRobot console scripts."""
-    scripts = discover_project_scripts(CONFIG.lerobot_root)
+    config = _lerobot_config()
+    scripts = discover_project_scripts(config.lerobot_root)
     return {
         "commands": {
             name.removeprefix("lerobot-"): name for name in sorted(scripts) if name.startswith("lerobot-")
@@ -118,19 +146,22 @@ def lerobot_list_commands() -> dict[str, Any]:
 @mcp.tool()
 def lerobot_capabilities() -> dict[str, Any]:
     """List LeRobot scripts, extras, examples, and registered components from the current checkout."""
-    return discover_lerobot_capabilities(CONFIG.lerobot_root).model_dump(mode="json")
+    config = _lerobot_config()
+    return discover_lerobot_capabilities(config.lerobot_root).model_dump(mode="json")
 
 
 @mcp.tool()
 def lerobot_public_symbols(module_prefix: str = "lerobot", limit: int = 500) -> list[dict[str, str]]:
     """List public classes/functions below a LeRobot module prefix by static source inspection."""
-    return module_public_symbols(CONFIG.lerobot_root, module_prefix)[:limit]
+    config = _lerobot_config()
+    return module_public_symbols(config.lerobot_root, module_prefix)[:limit]
 
 
 @mcp.tool()
 def lerobot_list_examples(category: str | None = None) -> list[dict[str, str]]:
     """List Python example scripts under the configured LeRobot checkout."""
-    return [example.model_dump(mode="json") for example in list_examples(CONFIG.examples_dir, category)]
+    config = _lerobot_config()
+    return [example.model_dump(mode="json") for example in list_examples(config.examples_dir, category)]
 
 
 @mcp.tool()
@@ -149,7 +180,7 @@ def lerobot_build_command(
         cwd=Path(cwd).expanduser() if cwd else None,
         use_uv=use_uv,
     )
-    return build_entrypoint_preview(CONFIG, request).model_dump(mode="json")
+    return build_entrypoint_preview(_lerobot_config(), request).model_dump(mode="json")
 
 
 @mcp.tool()
@@ -159,7 +190,7 @@ def lerobot_command_help(
     use_uv: bool = True,
 ) -> dict[str, Any]:
     """Run `--help` for any discovered LeRobot console command."""
-    preview = build_command_help_preview(CONFIG, command, use_uv=use_uv)
+    preview = build_command_help_preview(_lerobot_config(), command, use_uv=use_uv)
     return MANAGER.run(preview, timeout_seconds=timeout_seconds, background=False).model_dump(mode="json")
 
 
@@ -177,7 +208,7 @@ def lerobot_build_example(
         extra_args=extra_args or [],
         use_uv=use_uv,
     )
-    return build_example_preview(CONFIG, request).model_dump(mode="json")
+    return build_example_preview(_lerobot_config(), request).model_dump(mode="json")
 
 
 @mcp.tool()
@@ -202,7 +233,7 @@ def lerobot_run_command(
         use_uv=use_uv,
         env=env or {},
     )
-    return run_lerobot_command(CONFIG, MANAGER, request).model_dump(mode="json")
+    return run_lerobot_command(_lerobot_config(), MANAGER, request).model_dump(mode="json")
 
 
 @mcp.tool()
@@ -225,7 +256,7 @@ def lerobot_run_example(
         use_uv=use_uv,
         env=env or {},
     )
-    return run_lerobot_example(CONFIG, MANAGER, request).model_dump(mode="json")
+    return run_lerobot_example(_lerobot_config(), MANAGER, request).model_dump(mode="json")
 
 
 @mcp.tool()
@@ -370,7 +401,7 @@ def lerobot_build_dataset_latest_format_convert(
         force_conversion=force_conversion,
         use_uv=use_uv,
     )
-    return build_dataset_latest_format_convert_preview(CONFIG, request).model_dump(mode="json")
+    return build_dataset_latest_format_convert_preview(_lerobot_config(), request).model_dump(mode="json")
 
 
 @mcp.tool()
@@ -405,7 +436,7 @@ def lerobot_convert_dataset_to_latest_format(
         use_uv=use_uv,
         env=env or {},
     )
-    return run_dataset_latest_format_convert(CONFIG, MANAGER, request).model_dump(mode="json")
+    return run_dataset_latest_format_convert(_lerobot_config(), MANAGER, request).model_dump(mode="json")
 
 
 @mcp.tool()
@@ -450,7 +481,7 @@ def lerobot_inspect_dataset_metadata(
         timeout_seconds=timeout_seconds,
         use_uv=use_uv,
     )
-    result = inspect_dataset_metadata(CONFIG, request)
+    result = inspect_dataset_metadata(_lerobot_config(), request)
     if hasattr(result, "model_dump"):
         return result.model_dump(mode="json")
     return result

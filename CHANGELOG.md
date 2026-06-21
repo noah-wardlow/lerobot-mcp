@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- Prefer existing LeRobot checkouts in the README, with managed setup documented as a fallback.
+- Lazily prepare the managed LeRobot fallback the first time a LeRobot-backed tool needs it.
+- Simplify dataset conversion docs so implementation details stay behind the MCP tool surface.
+
 ## 0.1.1
 
 - Prepare managed LeRobot checkouts with Python 3.12 by default.
