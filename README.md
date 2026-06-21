@@ -9,7 +9,7 @@ instead of being hardcoded.
 
 ## Features
 
-- Discover available `lerobot-*` entry points from a local checkout or installed package.
+- Discover available `lerobot-*` entry points from a managed, local, or installed LeRobot checkout.
 - List and run scripts under LeRobot's `examples/` tree with path traversal protection.
 - Audit registered policies, rewards, robots, teleoperators, cameras, envs, processors, rollout
   strategies, optimizers, schedulers, and RL algorithms by static source inspection.
@@ -37,30 +37,21 @@ cd lerobot-mcp
 uv sync --extra dev
 ```
 
-You also need either a LeRobot checkout or an installed `lerobot` package. A local checkout is best
-when you want compatibility with latest `main`:
-
-```bash
-git clone https://github.com/huggingface/lerobot.git
-cd lerobot
-git checkout main
-git pull --ff-only origin main
-```
-
 ## MCP Quick Start
 
-Point `LEROBOT_ROOT` at your LeRobot checkout. If you installed `lerobot-mcp` with `uv tool install`,
-use `lerobot-mcp` as the command. If you are running from a checkout, use
-`/path/to/lerobot-mcp/.venv/bin/lerobot-mcp`.
+You do not need to clone LeRobot manually for the normal path. Configure the MCP server, then ask your
+client to run `lerobot_install_or_update_lerobot`. That tool clones or updates LeRobot `main` into the
+managed checkout at `~/.cache/lerobot-mcp/lerobot`.
+
+If you already have a LeRobot checkout, you can still set `LEROBOT_ROOT=/path/to/lerobot` as an
+advanced override.
 
 ### Codex
 
 Add the local stdio MCP server with the Codex CLI:
 
 ```bash
-codex mcp add lerobot-mcp \
-  --env LEROBOT_ROOT=/path/to/lerobot \
-  -- lerobot-mcp
+codex mcp add lerobot-mcp -- lerobot-mcp
 ```
 
 Or add it manually to `~/.codex/config.toml`:
@@ -70,35 +61,30 @@ Or add it manually to `~/.codex/config.toml`:
 command = "lerobot-mcp"
 startup_timeout_sec = 20
 tool_timeout_sec = 3600
-
-[mcp_servers.lerobot_mcp.env]
-LEROBOT_ROOT = "/path/to/lerobot"
 ```
 
 Restart Codex after changing MCP config. In the Codex TUI, run `/mcp` to verify the server is loaded.
+Then ask Codex: "Run `lerobot_install_or_update_lerobot`, then list LeRobot commands."
 
 ### Claude Code
 
 Add the local stdio MCP server with Claude Code:
 
 ```bash
-claude mcp add lerobot-mcp \
-  --env LEROBOT_ROOT=/path/to/lerobot \
-  -- lerobot-mcp
+claude mcp add lerobot-mcp -- lerobot-mcp
 ```
 
 If you are running from a checkout instead of a tool install:
 
 ```bash
-claude mcp add lerobot-mcp \
-  --env LEROBOT_ROOT=/path/to/lerobot \
-  -- /path/to/lerobot-mcp/.venv/bin/lerobot-mcp
+claude mcp add lerobot-mcp -- /path/to/lerobot-mcp/.venv/bin/lerobot-mcp
 ```
 
 After adding the server, restart Claude Code and run `/mcp` to verify the server is connected.
+Then ask Claude: "Run `lerobot_install_or_update_lerobot`, then show `lerobot_capabilities`."
 
-If `LEROBOT_ROOT` is not set, the server falls back to an installed `lerobot` package and any
-`lerobot-*` commands found on `PATH`.
+Resolution order is: `LEROBOT_ROOT`, current project ancestors, managed checkout
+`~/.cache/lerobot-mcp/lerobot`, `~/hrl/lerobot`, then an installed `lerobot` package.
 
 ## Tool Model
 
@@ -135,6 +121,7 @@ uv run lerobot-train --dataset.repo_id=lerobot/aloha_mobile_cabinet --policy.typ
 ## Main MCP Tools
 
 - `lerobot_server_config`: show resolved LeRobot root, uv usage, and Forge pin.
+- `lerobot_install_or_update_lerobot`: clone or update LeRobot `main` into the managed checkout.
 - `lerobot_list_commands`: list discovered LeRobot console scripts.
 - `lerobot_capabilities`: audit current LeRobot commands, extras, examples, and registered components.
 - `lerobot_public_symbols`: inspect public classes/functions below a LeRobot module prefix.

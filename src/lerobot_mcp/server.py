@@ -9,8 +9,11 @@ from lerobot_mcp.config import (
     FORGE_COMMIT,
     FORGE_GIT_URL,
     FORGE_UV_SPEC,
+    LEROBOT_GIT_URL,
     discover_project_scripts,
+    install_or_update_lerobot,
     load_config,
+    managed_lerobot_root,
 )
 from lerobot_mcp.hub import hf_repo_info, hf_whoami, search_datasets
 from lerobot_mcp.introspection import discover_lerobot_capabilities, list_examples, module_public_symbols
@@ -65,10 +68,31 @@ def lerobot_server_config() -> dict[str, Any]:
         "python_path": CONFIG.python_path,
         "prefer_uv": CONFIG.prefer_uv,
         "can_use_uv": CONFIG.can_use_uv,
+        "managed_lerobot_root": str(managed_lerobot_root()),
+        "lerobot_git_url": LEROBOT_GIT_URL,
         "forge_git_url": FORGE_GIT_URL,
         "forge_commit": FORGE_COMMIT,
         "forge_uv_spec": FORGE_UV_SPEC,
     }
+
+
+@mcp.tool()
+def lerobot_install_or_update_lerobot(
+    root: str | None = None,
+    ref: str = "main",
+    timeout_seconds: int = 600,
+) -> dict[str, Any]:
+    """Clone or fast-forward update a LeRobot checkout, then refresh this MCP server's config."""
+    global CONFIG
+    result = install_or_update_lerobot(
+        root=Path(root).expanduser() if root else None,
+        ref=ref,
+        timeout_seconds=timeout_seconds,
+    )
+    CONFIG = load_config()
+    result["active_lerobot_root"] = str(CONFIG.lerobot_root) if CONFIG.lerobot_root else None
+    result["can_use_uv"] = CONFIG.can_use_uv
+    return result
 
 
 @mcp.tool()

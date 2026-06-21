@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 
+LEROBOT_GIT_URL = "https://github.com/huggingface/lerobot.git"
 FORGE_GIT_URL = "https://github.com/arpitg1304/forge.git"
 FORGE_COMMIT = "461a0179115c7f2dc763ff4b1a1d2de02f5a1e69"
 FORGE_UV_SPEC = f"forge-robotics[hub,lerobot] @ git+{FORGE_GIT_URL}@{FORGE_COMMIT}"
@@ -40,6 +41,7 @@ def find_lerobot_root(start: Path | None = None) -> Path | None:
     if start is not None:
         candidates.extend([start.resolve(), *start.resolve().parents])
     candidates.append(Path.cwd().resolve())
+    candidates.append(managed_lerobot_root())
     candidates.append(Path.home() / "hrl" / "lerobot")
 
     seen: set[Path] = set()
@@ -59,6 +61,86 @@ def load_config() -> ServerConfig:
         python_path=sys.executable,
         prefer_uv=os.getenv("LEROBOT_MCP_NO_UV", "").lower() not in {"1", "true", "yes"},
     )
+
+
+def managed_lerobot_root() -> Path:
+    env_root = os.getenv("LEROBOT_MCP_MANAGED_ROOT")
+    if env_root:
+        return Path(env_root).expanduser().resolve()
+    cache_home = Path(os.getenv("XDG_CACHE_HOME", Path.home() / ".cache")).expanduser()
+    return (cache_home / "lerobot-mcp" / "lerobot").resolve()
+
+
+def install_or_update_lerobot(
+    *,
+    root: Path | None = None,
+    ref: str = "main",
+    timeout_seconds: int = 600,
+) -> dict[str, object]:
+    target = (root or managed_lerobot_root()).expanduser().resolve()
+    if target.exists() and not _looks_like_lerobot_checkout(target):
+        raise ValueError(f"Target exists but is not a LeRobot checkout: {target}")
+
+    if not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        completed = subprocess.run(
+            [
+                "git",
+                "clone",
+                "--branch",
+                ref,
+                "--single-branch",
+                LEROBOT_GIT_URL,
+                str(target),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+        action = "cloned"
+    else:
+        if not (target / ".git").exists():
+            raise ValueError(f"LeRobot checkout is not a git checkout: {target}")
+        completed = subprocess.run(
+            ["git", "fetch", "origin", ref, "--prune"],
+            cwd=target,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+        if completed.returncode == 0:
+            completed = subprocess.run(
+                ["git", "checkout", ref],
+                cwd=target,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        if completed.returncode == 0:
+            completed = subprocess.run(
+                ["git", "pull", "--ff-only", "origin", ref],
+                cwd=target,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        action = "updated"
+
+    commit = get_git_commit(target) if completed.returncode == 0 else None
+    return {
+        "action": action,
+        "root": str(target),
+        "ref": ref,
+        "returncode": completed.returncode,
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
+        "git_commit": commit,
+        "is_lerobot_checkout": _looks_like_lerobot_checkout(target),
+    }
 
 
 def _looks_like_lerobot_checkout(path: Path) -> bool:

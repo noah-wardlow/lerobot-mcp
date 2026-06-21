@@ -72,6 +72,7 @@ lerobot-record = "lerobot.scripts.record:main"
         tool_names = {tool.name for tool in tools.tools}
 
         assert "lerobot_capabilities" in tool_names
+        assert "lerobot_install_or_update_lerobot" in tool_names
         assert "lerobot_forge_inspect" in tool_names
         assert "lerobot_hf_search_datasets" in tool_names
         assert "lerobot_list_jobs" in tool_names
