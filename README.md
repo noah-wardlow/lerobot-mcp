@@ -250,33 +250,4 @@ Build the package:
 uv build
 ```
 
-## Publishing
-
-This repo is set up for PyPI Trusted Publishing from GitHub Actions. Configure this pending publisher
-on PyPI:
-
-| Field | Value |
-| --- | --- |
-| PyPI Project Name | `lerobot-mcp` |
-| Owner | `noah-wardlow` |
-| Repository name | `lerobot-mcp` |
-| Workflow name | `publish.yml` |
-| Environment name | `pypi` |
-
-Before publishing a release:
-
-1. Update `version` in `pyproject.toml`.
-2. Run `uv run ruff check .`, `uv run mypy`, and `uv run pytest -vv`.
-3. Run `uv build`.
-4. Commit and push the version change.
-5. Tag and push the release:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-The `publish.yml` workflow publishes on `v*` tag pushes. It also supports manual `workflow_dispatch`
-after the matching PyPI trusted publisher is configured.
-
 This repository is Apache-2.0 licensed.
