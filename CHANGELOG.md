@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Add tools for agents to find existing LeRobot checkouts and select one for the current MCP session.
+
 ## 0.1.2
 
 - Prefer existing LeRobot checkouts in the README, with managed setup documented as a fallback.
@@ -22,4 +26,4 @@
 - Managed background jobs with status, logs, listing, and cancellation.
 - Dataset metadata inspection.
 - Hugging Face Hub repo and dataset search tools.
-- Forge inspect and convert integration pinned to commit `461a0179115c7f2dc763ff4b1a1d2de02f5a1e69`.
+- Dataset inspect and convert integration.

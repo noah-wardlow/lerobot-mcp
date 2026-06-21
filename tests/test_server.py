@@ -64,3 +64,17 @@ def test_lerobot_config_can_disable_managed_fallback(monkeypatch) -> None:
     monkeypatch.setattr(server, "install_or_update_lerobot", fail_install_or_update_lerobot)
 
     assert server._lerobot_config() == missing
+
+
+def test_use_lerobot_root_sets_current_process_config(monkeypatch, tmp_path: Path) -> None:
+    checkout = tmp_path / "lerobot"
+    (checkout / "src" / "lerobot").mkdir(parents=True)
+    (checkout / "examples").mkdir()
+    (checkout / "pyproject.toml").write_text('[project]\nname="lerobot"\n', encoding="utf-8")
+    monkeypatch.delenv("LEROBOT_ROOT", raising=False)
+
+    result = server.lerobot_use_lerobot_root(str(checkout))
+
+    assert result["lerobot_root"] == str(checkout.resolve())
+    assert result["examples_dir"] == str((checkout / "examples").resolve())
+    assert server.CONFIG.lerobot_root == checkout.resolve()

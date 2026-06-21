@@ -36,8 +36,9 @@ uv sync --extra dev
 
 ## MCP Quick Start
 
-Most users should point the MCP server at the LeRobot checkout they already use. Start your MCP client
-from inside that checkout, or set `LEROBOT_ROOT=/path/to/lerobot` in the MCP server environment.
+Most users should use the LeRobot checkout they already have. Start your MCP client from inside that
+checkout, set `LEROBOT_ROOT=/path/to/lerobot` in the MCP server environment, or ask the agent to find
+and select a checkout with `lerobot_find_lerobot_roots` and `lerobot_use_lerobot_root`.
 
 If no checkout is found, LeRobot-backed tools lazily prepare a managed fallback at
 `~/.cache/lerobot-mcp/lerobot` with Python 3.12 and LeRobot's `dataset` extra. That fallback covers
@@ -122,6 +123,8 @@ uv run lerobot-train --dataset.repo_id=lerobot/aloha_mobile_cabinet --policy.typ
 ## Main MCP Tools
 
 - `lerobot_server_config`: show resolved LeRobot root, uv usage, and managed Python/extras.
+- `lerobot_find_lerobot_roots`, `lerobot_use_lerobot_root`: find an existing LeRobot checkout and use
+  it for the current MCP session.
 - `lerobot_install_or_update_lerobot`: clone or update LeRobot `main` into the managed checkout and
   prepare its `uv` environment.
 - `lerobot_list_commands`: list discovered LeRobot console scripts.

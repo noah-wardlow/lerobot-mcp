@@ -12,10 +12,13 @@ from lerobot_mcp.config import (
     FORGE_UV_SPEC,
     LEROBOT_GIT_URL,
     ServerConfig,
+    discover_lerobot_roots,
     discover_project_scripts,
+    get_git_commit,
     install_or_update_lerobot,
     load_config,
     managed_lerobot_root,
+    validate_lerobot_root,
 )
 from lerobot_mcp.hub import hf_repo_info, hf_whoami, search_datasets
 from lerobot_mcp.introspection import discover_lerobot_capabilities, list_examples, module_public_symbols
@@ -87,6 +90,8 @@ def _lerobot_config() -> ServerConfig:
 @mcp.tool()
 def lerobot_server_config() -> dict[str, Any]:
     """Return resolved server configuration and LeRobot checkout paths."""
+    global CONFIG
+    CONFIG = load_config()
     return {
         "lerobot_root": str(CONFIG.lerobot_root) if CONFIG.lerobot_root else None,
         "examples_dir": str(CONFIG.examples_dir) if CONFIG.examples_dir else None,
@@ -102,6 +107,46 @@ def lerobot_server_config() -> dict[str, Any]:
         "forge_git_url": FORGE_GIT_URL,
         "forge_commit": FORGE_COMMIT,
         "forge_uv_spec": FORGE_UV_SPEC,
+    }
+
+
+@mcp.tool()
+def lerobot_find_lerobot_roots(
+    search_roots: list[str] | None = None,
+    max_depth: int = 4,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    """Find LeRobot checkouts the agent can select without requiring the user to set LEROBOT_ROOT."""
+    roots = discover_lerobot_roots(
+        [Path(root).expanduser() for root in search_roots] if search_roots else None,
+        max_depth=max_depth,
+        limit=limit,
+    )
+    active = CONFIG.lerobot_root.resolve() if CONFIG.lerobot_root is not None else None
+    managed = managed_lerobot_root()
+    return [
+        {
+            "path": str(root),
+            "active": active == root,
+            "managed": root == managed,
+            "git_commit": get_git_commit(root),
+        }
+        for root in roots
+    ]
+
+
+@mcp.tool()
+def lerobot_use_lerobot_root(root: str) -> dict[str, Any]:
+    """Use an existing LeRobot checkout for this MCP server process."""
+    global CONFIG
+    resolved = validate_lerobot_root(Path(root))
+    os.environ["LEROBOT_ROOT"] = str(resolved)
+    CONFIG = load_config()
+    return {
+        "lerobot_root": str(CONFIG.lerobot_root) if CONFIG.lerobot_root else None,
+        "examples_dir": str(CONFIG.examples_dir) if CONFIG.examples_dir else None,
+        "can_use_uv": CONFIG.can_use_uv,
+        "git_commit": get_git_commit(CONFIG.lerobot_root),
     }
 
 

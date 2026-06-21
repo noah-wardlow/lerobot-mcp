@@ -15,6 +15,24 @@ FORGE_COMMIT = "461a0179115c7f2dc763ff4b1a1d2de02f5a1e69"
 FORGE_UV_SPEC = f"forge-robotics[hub,lerobot] @ git+{FORGE_GIT_URL}@{FORGE_COMMIT}"
 DEFAULT_LEROBOT_PYTHON = "3.12"
 DEFAULT_LEROBOT_EXTRAS = ("dataset",)
+DEFAULT_SEARCH_MAX_DEPTH = 4
+SKIP_SEARCH_DIRS = {
+    ".cache",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "Library",
+    "Applications",
+    "Movies",
+    "Music",
+    "node_modules",
+    "site-packages",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +74,61 @@ def find_lerobot_root(start: Path | None = None) -> Path | None:
         if _looks_like_lerobot_checkout(candidate):
             return candidate
     return None
+
+
+def discover_lerobot_roots(
+    search_roots: list[Path] | None = None,
+    *,
+    max_depth: int = DEFAULT_SEARCH_MAX_DEPTH,
+    limit: int = 20,
+) -> list[Path]:
+    exact_candidates: list[Path] = []
+    env_root = os.getenv("LEROBOT_ROOT")
+    if env_root:
+        exact_candidates.append(Path(env_root).expanduser())
+    exact_candidates.extend(
+        [Path.cwd(), *Path.cwd().parents, managed_lerobot_root(), Path.home() / "lerobot"]
+    )
+    walk_candidates = _default_lerobot_search_roots()
+    if search_roots is not None:
+        walk_candidates.extend(search_roots)
+
+    results: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in exact_candidates:
+        root = candidate.expanduser().resolve()
+        if root in seen:
+            continue
+        seen.add(root)
+        if _looks_like_lerobot_checkout(root):
+            results.append(root)
+            if len(results) >= limit:
+                return _dedupe_paths(results)
+    for candidate in walk_candidates:
+        root = candidate.expanduser().resolve()
+        if root in seen:
+            continue
+        seen.add(root)
+        if _looks_like_lerobot_checkout(root):
+            results.append(root)
+            if len(results) >= limit:
+                return _dedupe_paths(results)
+            continue
+        if root.is_dir():
+            for found in _walk_for_lerobot_roots(root, max_depth=max_depth):
+                if found not in seen:
+                    seen.add(found)
+                    results.append(found)
+                    if len(results) >= limit:
+                        return _dedupe_paths(results)
+    return _dedupe_paths(results)
+
+
+def validate_lerobot_root(root: Path) -> Path:
+    resolved = root.expanduser().resolve()
+    if not _looks_like_lerobot_checkout(resolved):
+        raise ValueError(f"Not a LeRobot checkout: {resolved}")
+    return resolved
 
 
 def load_config() -> ServerConfig:
@@ -205,6 +278,57 @@ def sync_lerobot_environment(
 
 def _looks_like_lerobot_checkout(path: Path) -> bool:
     return (path / "pyproject.toml").is_file() and (path / "src" / "lerobot").is_dir()
+
+
+def _default_lerobot_search_roots() -> list[Path]:
+    home = Path.home()
+    return [
+        managed_lerobot_root(),
+        home / "hrl",
+        home / "lerobot",
+        home / "src",
+        home / "code",
+        home / "Code",
+        home / "dev",
+        home / "Developer",
+        home / "projects",
+        home / "Projects",
+        home / "Documents" / "GitHub",
+    ]
+
+
+def _walk_for_lerobot_roots(root: Path, *, max_depth: int) -> list[Path]:
+    if max_depth < 0:
+        return []
+    results: list[Path] = []
+    stack: list[tuple[Path, int]] = [(root, 0)]
+    while stack:
+        current, depth = stack.pop()
+        if _looks_like_lerobot_checkout(current):
+            results.append(current)
+            continue
+        if depth >= max_depth:
+            continue
+        try:
+            children = sorted(current.iterdir(), key=lambda path: path.name)
+        except (OSError, PermissionError):
+            continue
+        for child in reversed(children):
+            if not child.is_dir() or child.name in SKIP_SEARCH_DIRS:
+                continue
+            stack.append((child, depth + 1))
+    return results
+
+
+def _dedupe_paths(paths: list[Path]) -> list[Path]:
+    result: list[Path] = []
+    seen: set[Path] = set()
+    for path in paths:
+        resolved = path.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            result.append(resolved)
+    return result
 
 
 def discover_project_scripts(root: Path | None) -> dict[str, str]:

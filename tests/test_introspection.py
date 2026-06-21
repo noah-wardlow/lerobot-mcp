@@ -2,7 +2,14 @@ from pathlib import Path
 
 import pytest
 
-from lerobot_mcp.config import find_lerobot_root, install_or_update_lerobot, load_config, managed_lerobot_root
+from lerobot_mcp.config import (
+    discover_lerobot_roots,
+    find_lerobot_root,
+    install_or_update_lerobot,
+    load_config,
+    managed_lerobot_root,
+    validate_lerobot_root,
+)
 from lerobot_mcp.introspection import list_examples, resolve_example_path
 
 
@@ -15,6 +22,21 @@ def test_find_lerobot_root_uses_managed_checkout(monkeypatch: pytest.MonkeyPatch
 
     assert managed_lerobot_root() == managed
     assert find_lerobot_root(start=tmp_path / "workspace") == managed.resolve()
+
+
+def test_discover_lerobot_roots_finds_nested_checkouts(tmp_path: Path) -> None:
+    checkout = tmp_path / "projects" / "robotics" / "lerobot"
+    (checkout / "src" / "lerobot").mkdir(parents=True)
+    (checkout / "pyproject.toml").write_text('[project]\nname="lerobot"\n', encoding="utf-8")
+
+    roots = discover_lerobot_roots([tmp_path / "projects"], max_depth=3)
+
+    assert checkout.resolve() in roots
+
+
+def test_validate_lerobot_root_rejects_non_checkout(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="Not a LeRobot checkout"):
+        validate_lerobot_root(tmp_path)
 
 
 def test_load_config_defaults_to_python_312_and_dataset_extra(
