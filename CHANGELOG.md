@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Trim redundant preview and generic helper tools from the public MCP surface.
+
 ## 0.1.3
 
 - Add tools for agents to find existing LeRobot checkouts and select one for the current MCP session.

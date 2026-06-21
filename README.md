@@ -129,20 +129,17 @@ uv run lerobot-train --dataset.repo_id=lerobot/aloha_mobile_cabinet --policy.typ
   prepare its `uv` environment.
 - `lerobot_list_commands`: list discovered LeRobot console scripts.
 - `lerobot_capabilities`: audit current LeRobot commands, extras, examples, and registered components.
-- `lerobot_public_symbols`: inspect public classes/functions below a LeRobot module prefix.
 - `lerobot_command_help`: run `--help` for a discovered LeRobot command.
 - `lerobot_list_examples`: list runnable examples in the checkout.
 - `lerobot_build_command`: dry-run a command from structured options.
-- `lerobot_build_example`: dry-run a LeRobot example script.
 - `lerobot_run_command`: run a known LeRobot entry point.
 - `lerobot_run_example`: run an example script under `examples/`.
 - `lerobot_list_jobs`, `lerobot_job_status`, `lerobot_job_logs`, `lerobot_cancel_job`: manage
   background jobs.
 - `lerobot_inspect_dataset_metadata`: summarize metadata for a local or Hub dataset.
-- `lerobot_hf_whoami`, `lerobot_hf_repo_info`: Hugging Face Hub utilities.
 - `lerobot_hf_search_datasets`: search datasets by robot, format, size, task, tags, and demo fit.
-- `lerobot_build_dataset_latest_format_convert`, `lerobot_convert_dataset_to_latest_format`: convert
-  LeRobot v2.1 datasets to the current v3.0 parquet layout.
+- `lerobot_convert_dataset_to_latest_format`: convert LeRobot v2.1 datasets to the current v3.0
+  parquet layout.
 
 ## LeRobot Dataset Format Migration
 

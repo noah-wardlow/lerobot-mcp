@@ -79,6 +79,13 @@ lerobot-record = "lerobot.scripts.record:main"
         assert "lerobot_hf_search_datasets" in tool_names
         assert "lerobot_list_jobs" in tool_names
         assert "lerobot_convert_dataset_to_latest_format" in tool_names
+        assert "lerobot_build_dataset_latest_format_convert" not in tool_names
+        assert "lerobot_build_example" not in tool_names
+        assert "lerobot_build_forge_convert" not in tool_names
+        assert "lerobot_build_forge_inspect" not in tool_names
+        assert "lerobot_hf_repo_info" not in tool_names
+        assert "lerobot_hf_whoami" not in tool_names
+        assert "lerobot_public_symbols" not in tool_names
 
         config = await session.call_tool("lerobot_server_config")
         assert str(lerobot_root) in _text_payload(config)
@@ -88,12 +95,6 @@ lerobot-record = "lerobot.scripts.record:main"
             {"command": "train", "options": {"policy.type": "act"}},
         )
         assert "lerobot-train" in _text_payload(build)
-
-        conversion = await session.call_tool(
-            "lerobot_build_dataset_latest_format_convert",
-            {"repo_id": "lerobot/berkeley_autolab_ur5", "root": str(tmp_path / "berkeley")},
-        )
-        assert "convert_dataset_v21_to_v30" in _text_payload(conversion)
 
         search = await session.call_tool(
             "lerobot_hf_search_datasets",

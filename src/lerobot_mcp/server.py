@@ -20,17 +20,13 @@ from lerobot_mcp.config import (
     managed_lerobot_root,
     validate_lerobot_root,
 )
-from lerobot_mcp.hub import hf_repo_info, hf_whoami, search_datasets
-from lerobot_mcp.introspection import discover_lerobot_capabilities, list_examples, module_public_symbols
+from lerobot_mcp.hub import search_datasets
+from lerobot_mcp.introspection import discover_lerobot_capabilities, list_examples
 from lerobot_mcp.metadata import inspect_dataset_metadata
 from lerobot_mcp.runner import (
     ProcessManager,
     build_command_help_preview,
-    build_dataset_latest_format_convert_preview,
     build_entrypoint_preview,
-    build_example_preview,
-    build_forge_convert_preview,
-    build_forge_inspect_preview,
     run_dataset_latest_format_convert,
     run_forge_convert,
     run_forge_inspect,
@@ -45,7 +41,6 @@ from lerobot_mcp.types import (
     ExampleRequest,
     ForgeConvertRequest,
     ForgeInspectRequest,
-    RepoType,
 )
 
 CONFIG = load_config()
@@ -196,13 +191,6 @@ def lerobot_capabilities() -> dict[str, Any]:
 
 
 @mcp.tool()
-def lerobot_public_symbols(module_prefix: str = "lerobot", limit: int = 500) -> list[dict[str, str]]:
-    """List public classes/functions below a LeRobot module prefix by static source inspection."""
-    config = _lerobot_config()
-    return module_public_symbols(config.lerobot_root, module_prefix)[:limit]
-
-
-@mcp.tool()
 def lerobot_list_examples(category: str | None = None) -> list[dict[str, str]]:
     """List Python example scripts under the configured LeRobot checkout."""
     config = _lerobot_config()
@@ -237,23 +225,6 @@ def lerobot_command_help(
     """Run `--help` for any discovered LeRobot console command."""
     preview = build_command_help_preview(_lerobot_config(), command, use_uv=use_uv)
     return MANAGER.run(preview, timeout_seconds=timeout_seconds, background=False).model_dump(mode="json")
-
-
-@mcp.tool()
-def lerobot_build_example(
-    example_path: str,
-    options: dict[str, str | int | float | bool | None] | None = None,
-    extra_args: list[str] | None = None,
-    use_uv: bool = True,
-) -> dict[str, Any]:
-    """Preview a LeRobot example script command without running it."""
-    request = ExampleRequest(
-        example_path=example_path,
-        options=options or {},
-        extra_args=extra_args or [],
-        use_uv=use_uv,
-    )
-    return build_example_preview(_lerobot_config(), request).model_dump(mode="json")
 
 
 @mcp.tool()
@@ -302,39 +273,6 @@ def lerobot_run_example(
         env=env or {},
     )
     return run_lerobot_example(_lerobot_config(), MANAGER, request).model_dump(mode="json")
-
-
-@mcp.tool()
-def lerobot_build_forge_convert(
-    source: str,
-    output: str,
-    target_format: str = "lerobot-v3",
-    source_format: str | None = None,
-    config_file: str | None = None,
-    fps: float | None = None,
-    robot_type: str | None = None,
-    camera_mapping: dict[str, str] | None = None,
-    workers: int = 1,
-    fail_on_error: bool = False,
-    visualize: bool = False,
-    dry_run: bool = False,
-) -> dict[str, Any]:
-    """Preview pinned Forge dataset conversion to or from LeRobot-compatible formats."""
-    request = ForgeConvertRequest(
-        source=source,
-        output=Path(output).expanduser(),
-        target_format=target_format,
-        source_format=source_format,
-        config_file=Path(config_file).expanduser() if config_file else None,
-        fps=fps,
-        robot_type=robot_type,
-        camera_mapping=camera_mapping or {},
-        workers=workers,
-        fail_on_error=fail_on_error,
-        visualize=visualize,
-        dry_run=dry_run,
-    )
-    return build_forge_convert_preview(CONFIG, request).model_dump(mode="json")
 
 
 @mcp.tool()
@@ -401,52 +339,6 @@ def lerobot_forge_inspect(
         env=env or {},
     )
     return run_forge_inspect(CONFIG, MANAGER, request).model_dump(mode="json")
-
-
-@mcp.tool()
-def lerobot_build_forge_inspect(
-    path: str,
-    format: str | None = None,
-    output: str = "json",
-    quick: bool = True,
-    deep: bool = False,
-    samples: int = 5,
-) -> dict[str, Any]:
-    """Preview pinned Forge dataset inspection."""
-    request = ForgeInspectRequest(
-        path=path,
-        format=format,
-        output="json" if output == "json" else "text",
-        quick=quick,
-        deep=deep,
-        samples=samples,
-    )
-    return build_forge_inspect_preview(CONFIG, request).model_dump(mode="json")
-
-
-@mcp.tool()
-def lerobot_build_dataset_latest_format_convert(
-    repo_id: str,
-    root: str | None = None,
-    branch: str | None = None,
-    data_file_size_in_mb: int | None = None,
-    video_file_size_in_mb: int | None = None,
-    push_to_hub: bool = False,
-    force_conversion: bool = False,
-    use_uv: bool = True,
-) -> dict[str, Any]:
-    """Preview LeRobot's official v2.1 -> current v3.0 parquet dataset conversion command."""
-    request = DatasetLatestFormatConvertRequest(
-        repo_id=repo_id,
-        root=Path(root).expanduser() if root else None,
-        branch=branch,
-        data_file_size_in_mb=data_file_size_in_mb,
-        video_file_size_in_mb=video_file_size_in_mb,
-        push_to_hub=push_to_hub,
-        force_conversion=force_conversion,
-        use_uv=use_uv,
-    )
-    return build_dataset_latest_format_convert_preview(_lerobot_config(), request).model_dump(mode="json")
 
 
 @mcp.tool()
@@ -530,22 +422,6 @@ def lerobot_inspect_dataset_metadata(
     if hasattr(result, "model_dump"):
         return result.model_dump(mode="json")
     return result
-
-
-@mcp.tool()
-def lerobot_hf_whoami() -> dict[str, Any]:
-    """Return the Hugging Face account visible to huggingface_hub."""
-    return hf_whoami()
-
-
-@mcp.tool()
-def lerobot_hf_repo_info(
-    repo_id: str,
-    repo_type: RepoType = RepoType.DATASET,
-    revision: str | None = None,
-) -> dict[str, Any]:
-    """Return basic Hugging Face Hub repository information."""
-    return hf_repo_info(repo_id=repo_id, repo_type=repo_type, revision=revision).model_dump(mode="json")
 
 
 @mcp.tool()
