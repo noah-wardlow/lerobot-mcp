@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1
+
+- Prepare managed LeRobot checkouts with Python 3.12 by default.
+- Install LeRobot's `dataset` extra during managed setup so dataset metadata, conversion, and command
+  help work after one MCP install call.
+- Expose managed Python and default LeRobot extras in server config, with environment-variable and
+  tool-argument overrides.
+
 ## 0.1.0
 
 - Initial typed MCP server for LeRobot workflows.

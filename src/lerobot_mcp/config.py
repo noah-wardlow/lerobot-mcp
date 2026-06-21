@@ -13,6 +13,8 @@ LEROBOT_GIT_URL = "https://github.com/huggingface/lerobot.git"
 FORGE_GIT_URL = "https://github.com/arpitg1304/forge.git"
 FORGE_COMMIT = "461a0179115c7f2dc763ff4b1a1d2de02f5a1e69"
 FORGE_UV_SPEC = f"forge-robotics[hub,lerobot] @ git+{FORGE_GIT_URL}@{FORGE_COMMIT}"
+DEFAULT_LEROBOT_PYTHON = "3.12"
+DEFAULT_LEROBOT_EXTRAS = ("dataset",)
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +23,8 @@ class ServerConfig:
     uv_path: str | None
     python_path: str
     prefer_uv: bool
+    lerobot_python: str = DEFAULT_LEROBOT_PYTHON
+    default_lerobot_extras: tuple[str, ...] = DEFAULT_LEROBOT_EXTRAS
 
     @property
     def examples_dir(self) -> Path | None:
@@ -60,6 +64,8 @@ def load_config() -> ServerConfig:
         uv_path=shutil.which("uv"),
         python_path=sys.executable,
         prefer_uv=os.getenv("LEROBOT_MCP_NO_UV", "").lower() not in {"1", "true", "yes"},
+        lerobot_python=os.getenv("LEROBOT_MCP_LEROBOT_PYTHON", DEFAULT_LEROBOT_PYTHON),
+        default_lerobot_extras=_configured_lerobot_extras(),
     )
 
 
@@ -76,6 +82,9 @@ def install_or_update_lerobot(
     root: Path | None = None,
     ref: str = "main",
     timeout_seconds: int = 600,
+    setup_environment: bool = True,
+    python: str | None = None,
+    extras: list[str] | tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     target = (root or managed_lerobot_root()).expanduser().resolve()
     if target.exists() and not _looks_like_lerobot_checkout(target):
@@ -130,17 +139,68 @@ def install_or_update_lerobot(
             )
         action = "updated"
 
+    sync_result: subprocess.CompletedProcess[str] | None = None
+    sync_extras = tuple(extras) if extras is not None else _configured_lerobot_extras()
+    sync_python = (
+        python if python is not None else os.getenv("LEROBOT_MCP_LEROBOT_PYTHON") or DEFAULT_LEROBOT_PYTHON
+    )
+    uv_path = shutil.which("uv")
+    if completed.returncode == 0 and setup_environment and uv_path is not None:
+        sync_result = sync_lerobot_environment(
+            target,
+            uv_path=uv_path,
+            python=sync_python,
+            extras=sync_extras,
+            timeout_seconds=timeout_seconds,
+        )
+
+    returncode = completed.returncode
+    if returncode == 0 and sync_result is not None and sync_result.returncode != 0:
+        returncode = sync_result.returncode
+
     commit = get_git_commit(target) if completed.returncode == 0 else None
     return {
         "action": action,
         "root": str(target),
         "ref": ref,
-        "returncode": completed.returncode,
+        "returncode": returncode,
+        "git_returncode": completed.returncode,
         "stdout": completed.stdout,
         "stderr": completed.stderr,
         "git_commit": commit,
         "is_lerobot_checkout": _looks_like_lerobot_checkout(target),
+        "environment_setup": {
+            "requested": setup_environment,
+            "ran": sync_result is not None,
+            "uv_path": uv_path,
+            "python": sync_python,
+            "extras": list(sync_extras),
+            "returncode": sync_result.returncode if sync_result is not None else None,
+            "stdout": sync_result.stdout if sync_result is not None else "",
+            "stderr": sync_result.stderr if sync_result is not None else "",
+        },
     }
+
+
+def sync_lerobot_environment(
+    root: Path,
+    *,
+    uv_path: str,
+    python: str = DEFAULT_LEROBOT_PYTHON,
+    extras: tuple[str, ...] = DEFAULT_LEROBOT_EXTRAS,
+    timeout_seconds: int = 600,
+) -> subprocess.CompletedProcess[str]:
+    argv = [uv_path, "sync", "--python", python]
+    for extra in extras:
+        argv.extend(["--extra", extra])
+    return subprocess.run(
+        argv,
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=timeout_seconds,
+        check=False,
+    )
 
 
 def _looks_like_lerobot_checkout(path: Path) -> bool:
@@ -187,15 +247,21 @@ def discover_optional_dependencies(root: Path | None) -> dict[str, list[str]]:
     return result
 
 
+def _configured_lerobot_extras() -> tuple[str, ...]:
+    raw = os.getenv("LEROBOT_MCP_LEROBOT_EXTRAS")
+    if raw is None:
+        return DEFAULT_LEROBOT_EXTRAS
+    extras = tuple(extra.strip() for extra in raw.split(",") if extra.strip())
+    return extras
+
+
 def resolve_lerobot_command(root: Path | None, command: str) -> str:
     scripts = discover_project_scripts(root)
     candidates = _command_candidates(command)
     for candidate in candidates:
         if candidate in scripts:
             return candidate
-    raise ValueError(
-        f"Unknown LeRobot command '{command}'. Available commands: {', '.join(sorted(scripts))}"
-    )
+    raise ValueError(f"Unknown LeRobot command '{command}'. Available commands: {', '.join(sorted(scripts))}")
 
 
 def command_shorthand(command_name: str) -> str:

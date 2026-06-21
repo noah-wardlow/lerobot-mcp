@@ -39,10 +39,20 @@ uv sync --extra dev
 
 You do not need to clone LeRobot manually for the normal path. Configure the MCP server, then ask your
 client to run `lerobot_install_or_update_lerobot`. That tool clones or updates LeRobot `main` into the
-managed checkout at `~/.cache/lerobot-mcp/lerobot`.
+managed checkout at `~/.cache/lerobot-mcp/lerobot`, then prepares its local `uv` environment with
+Python 3.12 and LeRobot's `dataset` extra. That default covers dataset metadata, format conversion,
+and common command help without requiring a separate LeRobot setup step.
 
 If you already have a LeRobot checkout, you can still set `LEROBOT_ROOT=/path/to/lerobot` as an
 advanced override.
+
+Advanced install controls:
+
+- Set `LEROBOT_MCP_LEROBOT_PYTHON=3.13` to use a different Python when preparing the managed
+  checkout.
+- Set `LEROBOT_MCP_LEROBOT_EXTRAS=dataset,core_scripts` to install more LeRobot extras by default.
+- Pass `setup_environment=false` to `lerobot_install_or_update_lerobot` if you only want clone/update
+  behavior.
 
 ### Codex
 
@@ -118,8 +128,9 @@ uv run lerobot-train --dataset.repo_id=lerobot/aloha_mobile_cabinet --policy.typ
 
 ## Main MCP Tools
 
-- `lerobot_server_config`: show resolved LeRobot root, uv usage, and Forge pin.
-- `lerobot_install_or_update_lerobot`: clone or update LeRobot `main` into the managed checkout.
+- `lerobot_server_config`: show resolved LeRobot root, uv usage, managed Python/extras, and Forge pin.
+- `lerobot_install_or_update_lerobot`: clone or update LeRobot `main` into the managed checkout and
+  prepare its `uv` environment.
 - `lerobot_list_commands`: list discovered LeRobot console scripts.
 - `lerobot_capabilities`: audit current LeRobot commands, extras, examples, and registered components.
 - `lerobot_public_symbols`: inspect public classes/functions below a LeRobot module prefix.
