@@ -32,7 +32,7 @@ uv tool install lerobot-mcp
 From a checkout:
 
 ```bash
-git clone https://github.com/noahwardlow/lerobot-mcp.git
+git clone https://github.com/noah-wardlow/lerobot-mcp.git
 cd lerobot-mcp
 uv sync --extra dev
 ```
@@ -47,9 +47,47 @@ git checkout main
 git pull --ff-only origin main
 ```
 
-## MCP Client Setup
+## MCP Quick Start
 
-Point `LEROBOT_ROOT` at your LeRobot checkout:
+Point `LEROBOT_ROOT` at your LeRobot checkout. If you installed `lerobot-mcp` with `uv tool install`,
+use `lerobot-mcp` as the command. If you are running from a checkout, use
+`/path/to/lerobot-mcp/.venv/bin/lerobot-mcp`.
+
+### Codex
+
+Add the local stdio MCP server with the Codex CLI:
+
+```bash
+codex mcp add lerobot-mcp \
+  --env LEROBOT_ROOT=/path/to/lerobot \
+  -- lerobot-mcp
+```
+
+Or add it manually to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.lerobot_mcp]
+command = "lerobot-mcp"
+startup_timeout_sec = 20
+tool_timeout_sec = 3600
+
+[mcp_servers.lerobot_mcp.env]
+LEROBOT_ROOT = "/path/to/lerobot"
+```
+
+Restart Codex after changing MCP config. In the Codex TUI, run `/mcp` to verify the server is loaded.
+
+### Claude Code
+
+Add the local stdio MCP server with Claude Code:
+
+```bash
+claude mcp add lerobot-mcp \
+  --env LEROBOT_ROOT=/path/to/lerobot \
+  -- lerobot-mcp
+```
+
+If you are running from a checkout instead of a tool install:
 
 ```bash
 claude mcp add lerobot-mcp \
@@ -57,13 +95,7 @@ claude mcp add lerobot-mcp \
   -- /path/to/lerobot-mcp/.venv/bin/lerobot-mcp
 ```
 
-If installed as a tool:
-
-```bash
-claude mcp add lerobot-mcp \
-  --env LEROBOT_ROOT=/path/to/lerobot \
-  -- lerobot-mcp
-```
+After adding the server, restart Claude Code and run `/mcp` to verify the server is connected.
 
 If `LEROBOT_ROOT` is not set, the server falls back to an installed `lerobot` package and any
 `lerobot-*` commands found on `PATH`.

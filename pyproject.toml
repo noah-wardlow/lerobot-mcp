@@ -25,9 +25,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/noahwardlow/lerobot-mcp"
-Repository = "https://github.com/noahwardlow/lerobot-mcp"
-Issues = "https://github.com/noahwardlow/lerobot-mcp/issues"
+Homepage = "https://github.com/noah-wardlow/lerobot-mcp"
+Repository = "https://github.com/noah-wardlow/lerobot-mcp"
+Issues = "https://github.com/noah-wardlow/lerobot-mcp/issues"
 
 [project.optional-dependencies]
 dev = [

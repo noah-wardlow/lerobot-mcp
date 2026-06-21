@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 type PrimitiveValue = str | int | float | bool | None
 type JsonValue = PrimitiveValue | list[JsonValue] | dict[str, JsonValue]
+OPTION_KEY_PATTERN = r"^[A-Za-z0-9_.-]+$"
 
 
 class StrictModel(BaseModel):
@@ -28,8 +29,17 @@ class JobState(StrEnum):
 
 
 class CommandOption(StrictModel):
-    key: str = Field(min_length=1, pattern=r"^[A-Za-z0-9_.-]+$")
+    key: str = Field(min_length=1, pattern=OPTION_KEY_PATTERN)
     value: PrimitiveValue = None
+
+
+def validate_option_keys(options: dict[str, PrimitiveValue]) -> dict[str, PrimitiveValue]:
+    import re
+
+    for key in options:
+        if not re.fullmatch(OPTION_KEY_PATTERN, key):
+            raise ValueError(f"Invalid option key: {key!r}")
+    return options
 
 
 class CommandRequest(StrictModel):
@@ -49,6 +59,11 @@ class CommandRequest(StrictModel):
             raise ValueError("extra_args cannot contain empty strings or NUL bytes")
         return value
 
+    @field_validator("options")
+    @classmethod
+    def validate_options(cls, value: dict[str, PrimitiveValue]) -> dict[str, PrimitiveValue]:
+        return validate_option_keys(value)
+
 
 class ExampleRequest(StrictModel):
     example_path: str = Field(min_length=1)
@@ -65,6 +80,11 @@ class ExampleRequest(StrictModel):
         if any(arg == "" or "\x00" in arg for arg in value):
             raise ValueError("extra_args cannot contain empty strings or NUL bytes")
         return value
+
+    @field_validator("options")
+    @classmethod
+    def validate_options(cls, value: dict[str, PrimitiveValue]) -> dict[str, PrimitiveValue]:
+        return validate_option_keys(value)
 
 
 class CommandPreview(StrictModel):

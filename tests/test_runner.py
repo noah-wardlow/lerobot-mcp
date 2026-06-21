@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from lerobot_mcp.config import ServerConfig
 from lerobot_mcp.runner import (
     build_dataset_latest_format_convert_preview,
@@ -23,6 +25,11 @@ def test_serialize_options_uses_draccus_friendly_values() -> None:
         "--c",
         "--d=3",
     ]
+
+
+def test_command_options_reject_invalid_keys() -> None:
+    with pytest.raises(ValueError, match="Invalid option key"):
+        CommandRequest(command="train", options={"bad key": "value"})
 
 
 def test_build_entrypoint_uses_uv_when_checkout_is_available(tmp_path: Path) -> None:
