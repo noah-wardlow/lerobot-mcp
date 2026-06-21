@@ -1,0 +1,63 @@
+[project]
+name = "lerobot-mcp"
+version = "0.1.0"
+description = "Typed MCP server for running and inspecting Hugging Face LeRobot workflows"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+authors = [{ name = "Noah Wardlow" }]
+keywords = ["lerobot", "mcp", "robotics", "huggingface", "datasets", "forge"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    "huggingface-hub>=1.0.0,<2.0.0",
+    "mcp[cli]>=1.23.0",
+    "pydantic>=2.10.0,<3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/noahwardlow/lerobot-mcp"
+Repository = "https://github.com/noahwardlow/lerobot-mcp"
+Issues = "https://github.com/noahwardlow/lerobot-mcp/issues"
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.19.0",
+    "pytest>=8.0.0",
+    "ruff>=0.14.0",
+]
+
+[project.scripts]
+lerobot-mcp = "lerobot_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lerobot_mcp"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/lerobot_mcp/py.typed" = "lerobot_mcp/py.typed"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 110
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["lerobot_mcp"]
