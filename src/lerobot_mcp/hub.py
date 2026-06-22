@@ -5,12 +5,34 @@ import os
 import urllib.request
 from typing import Any, Literal, cast
 
-from huggingface_hub import HfApi
+from huggingface_hub import HfApi, hf_hub_download
 
 from lerobot_mcp.config import FORGE_COMMIT
-from lerobot_mcp.types import DatasetSearchRequest, DatasetSearchResult, HubRepoInfo, RepoType
+from lerobot_mcp.types import (
+    DatasetSearchRequest,
+    DatasetSearchResult,
+    HubRepoInfo,
+    JsonValue,
+    PolicyRepoInspection,
+    PolicyRepoInspectRequest,
+    RepoType,
+)
 
 type HfDatasetSort = Literal["created_at", "downloads", "last_modified", "likes", "trending_score"]
+
+POLICY_CONFIG_CANDIDATES = (
+    "config.json",
+    "policy_config.json",
+    "train_config.json",
+    "preprocessor_config.json",
+)
+POLICY_PROCESSOR_FILES = {
+    "preprocessor_config.json",
+    "processor_config.json",
+    "normalization_stats.json",
+    "stats.json",
+}
+POLICY_WEIGHT_SUFFIXES = (".safetensors", ".bin", ".pt", ".pth", ".ckpt")
 
 
 def hf_whoami() -> dict[str, object]:
@@ -33,6 +55,73 @@ def hf_repo_info(
         sha=getattr(info, "sha", None),
         tags=list(getattr(info, "tags", []) or []),
         siblings=siblings,
+    )
+
+
+def inspect_policy_repo(request: PolicyRepoInspectRequest) -> PolicyRepoInspection:
+    api = HfApi()
+    info = api.repo_info(
+        repo_id=request.repo_id,
+        repo_type=RepoType.MODEL.value,
+        revision=request.revision,
+    )
+    siblings_raw = cast(Any, getattr(info, "siblings", None)) or []
+    files = sorted(str(sibling.rfilename) for sibling in siblings_raw)
+    config_files = [name for name in files if name in POLICY_CONFIG_CANDIDATES]
+    weight_files = [name for name in files if name.endswith(POLICY_WEIGHT_SUFFIXES)]
+    processor_files = [name for name in files if name in POLICY_PROCESSOR_FILES]
+    configs = _download_policy_configs(request.repo_id, config_files, request.revision)
+    merged = _merge_config_objects(configs)
+    input_features = _feature_dict(
+        _first_mapping(merged, ("input_features", "observation_features", "features"))
+    )
+    output_features = _feature_dict(_first_mapping(merged, ("output_features", "action_features")))
+    image_keys = _classify_feature_keys(input_features, "image")
+    state_keys = _classify_feature_keys(input_features, "state")
+    action_keys = _classify_feature_keys(output_features, "action")
+    missing_expected_files: list[str] = []
+    if not config_files:
+        missing_expected_files.append("config.json")
+    if not weight_files:
+        missing_expected_files.append("model weights")
+
+    notes: list[str] = []
+    if image_keys:
+        notes.append(
+            "Image observation keys are declared; browser clients should map camera captures by name."
+        )
+    if state_keys:
+        notes.append(
+            "State observation keys are declared; clients should verify qpos/qvel ordering against training."
+        )
+    if action_keys:
+        notes.append(
+            "Action keys are declared; clients should verify actuator ordering and scaling before rollout."
+        )
+    if not input_features and not output_features:
+        notes.append("No explicit feature schema found in lightweight config files.")
+
+    return PolicyRepoInspection(
+        repo_id=str(info.id),
+        revision=request.revision,
+        sha=getattr(info, "sha", None),
+        private=getattr(info, "private", None),
+        tags=list(getattr(info, "tags", []) or []),
+        config_files=config_files,
+        weight_files=weight_files,
+        processor_files=processor_files,
+        policy_type=_first_string(merged, ("policy_type", "type"), path_contains=("policy", "config")),
+        dataset_repo_id=_first_string(merged, ("dataset_repo_id", "repo_id"), path_contains=("dataset",)),
+        robot_type=_first_string(merged, ("robot_type",), path_contains=("robot", "dataset")),
+        fps=_first_float(merged, ("fps",)),
+        input_features=input_features,
+        output_features=output_features,
+        image_keys=image_keys,
+        state_keys=state_keys,
+        action_keys=action_keys,
+        missing_expected_files=missing_expected_files,
+        notes=notes,
+        raw_configs=configs if request.include_raw_configs else {},
     )
 
 
@@ -190,6 +279,115 @@ def _search_forge_registry(request: DatasetSearchRequest) -> list[DatasetSearchR
             )
         )
     return results
+
+
+def _download_policy_configs(
+    repo_id: str,
+    config_files: list[str],
+    revision: str | None,
+) -> dict[str, JsonValue]:
+    configs: dict[str, JsonValue] = {}
+    for filename in config_files:
+        try:
+            path = hf_hub_download(
+                repo_id=repo_id,
+                filename=filename,
+                repo_type=RepoType.MODEL.value,
+                revision=revision,
+            )
+        except Exception:
+            continue
+        with open(path, encoding="utf-8") as handle:
+            value = json.load(handle)
+        if _is_json_value(value):
+            configs[filename] = value
+    return configs
+
+
+def _merge_config_objects(configs: dict[str, JsonValue]) -> dict[str, Any]:
+    merged: dict[str, Any] = {}
+    for value in configs.values():
+        if isinstance(value, dict):
+            _deep_merge(merged, value)
+    return merged
+
+
+def _deep_merge(target: dict[str, Any], source: dict[str, JsonValue]) -> None:
+    for key, value in source.items():
+        if isinstance(value, dict) and isinstance(target.get(key), dict):
+            _deep_merge(cast(dict[str, Any], target[key]), value)
+        else:
+            target[key] = value
+
+
+def _first_mapping(config: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any]:
+    for path, value in _walk_config(config):
+        if path and path[-1] in keys and isinstance(value, dict):
+            return value
+    return {}
+
+
+def _feature_dict(value: dict[str, Any]) -> dict[str, JsonValue]:
+    return {
+        str(key): cast(JsonValue, feature)
+        for key, feature in value.items()
+        if _is_json_value(feature)
+    }
+
+
+def _classify_feature_keys(features: dict[str, JsonValue], kind: str) -> list[str]:
+    matches: list[str] = []
+    for key, value in features.items():
+        haystack = f"{key} {json.dumps(value, sort_keys=True)}".lower()
+        if kind in haystack:
+            matches.append(key)
+    return matches
+
+
+def _first_string(
+    config: dict[str, Any],
+    keys: tuple[str, ...],
+    *,
+    path_contains: tuple[str, ...] = (),
+) -> str | None:
+    fallback: str | None = None
+    for path, value in _walk_config(config):
+        if not path or path[-1] not in keys or not isinstance(value, str):
+            continue
+        if not path_contains or any(part in ".".join(path[:-1]).lower() for part in path_contains):
+            return value
+        fallback = fallback or value
+    return fallback
+
+
+def _first_float(config: dict[str, Any], keys: tuple[str, ...]) -> float | None:
+    for path, value in _walk_config(config):
+        if not path or path[-1] not in keys:
+            continue
+        if isinstance(value, int | float) and not isinstance(value, bool):
+            return float(value)
+    return None
+
+
+def _walk_config(value: Any, path: tuple[str, ...] = ()) -> list[tuple[tuple[str, ...], Any]]:
+    items = [(path, value)]
+    if isinstance(value, dict):
+        for key, child in value.items():
+            items.extend(_walk_config(child, (*path, str(key))))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            items.extend(_walk_config(child, (*path, str(index))))
+    return items
+
+
+def _is_json_value(value: Any) -> bool:
+    if value is None or isinstance(value, str | int | float | bool):
+        return True
+    if isinstance(value, list):
+        return all(_is_json_value(item) for item in value)
+    if isinstance(value, dict):
+        return all(isinstance(key, str) and _is_json_value(item) for key, item in value.items())
+    return False
 
 
 def _load_forge_registry() -> dict[str, dict[str, Any]]:

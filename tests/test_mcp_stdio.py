@@ -77,6 +77,7 @@ lerobot-record = "lerobot.scripts.record:main"
         assert "lerobot_use_lerobot_root" in tool_names
         assert "lerobot_forge_inspect" in tool_names
         assert "lerobot_hf_search_datasets" in tool_names
+        assert "lerobot_inspect_policy_repo" in tool_names
         assert "lerobot_list_jobs" in tool_names
         assert "lerobot_convert_dataset_to_latest_format" in tool_names
         assert "lerobot_build_dataset_latest_format_convert" not in tool_names

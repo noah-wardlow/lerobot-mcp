@@ -20,7 +20,7 @@ from lerobot_mcp.config import (
     managed_lerobot_root,
     validate_lerobot_root,
 )
-from lerobot_mcp.hub import search_datasets
+from lerobot_mcp.hub import inspect_policy_repo, search_datasets
 from lerobot_mcp.introspection import discover_lerobot_capabilities, list_examples
 from lerobot_mcp.metadata import inspect_dataset_metadata
 from lerobot_mcp.runner import (
@@ -41,6 +41,7 @@ from lerobot_mcp.types import (
     ExampleRequest,
     ForgeConvertRequest,
     ForgeInspectRequest,
+    PolicyRepoInspectRequest,
 )
 
 CONFIG = load_config()
@@ -463,6 +464,21 @@ def lerobot_hf_search_datasets(
         limit=limit,
     )
     return [result.model_dump(mode="json") for result in search_datasets(request)]
+
+
+@mcp.tool()
+def lerobot_inspect_policy_repo(
+    repo_id: str,
+    revision: str | None = None,
+    include_raw_configs: bool = False,
+) -> dict[str, Any]:
+    """Inspect a Hugging Face LeRobot policy/model repo for observation and action contract hints."""
+    request = PolicyRepoInspectRequest(
+        repo_id=repo_id,
+        revision=revision,
+        include_raw_configs=include_raw_configs,
+    )
+    return inspect_policy_repo(request).model_dump(mode="json")
 
 
 def main() -> None:

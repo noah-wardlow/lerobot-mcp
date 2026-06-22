@@ -248,4 +248,33 @@ class DatasetSearchResult(StrictModel):
     notes: str | None = None
 
 
+class PolicyRepoInspectRequest(StrictModel):
+    repo_id: str = Field(min_length=1)
+    revision: str | None = None
+    include_raw_configs: bool = False
+
+
+class PolicyRepoInspection(StrictModel):
+    repo_id: str
+    revision: str | None = None
+    sha: str | None = None
+    private: bool | None = None
+    tags: list[str] = Field(default_factory=list)
+    config_files: list[str] = Field(default_factory=list)
+    weight_files: list[str] = Field(default_factory=list)
+    processor_files: list[str] = Field(default_factory=list)
+    policy_type: str | None = None
+    dataset_repo_id: str | None = None
+    robot_type: str | None = None
+    fps: float | None = None
+    input_features: dict[str, JsonValue] = Field(default_factory=dict)
+    output_features: dict[str, JsonValue] = Field(default_factory=dict)
+    image_keys: list[str] = Field(default_factory=list)
+    state_keys: list[str] = Field(default_factory=list)
+    action_keys: list[str] = Field(default_factory=list)
+    missing_expected_files: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+    raw_configs: dict[str, JsonValue] = Field(default_factory=dict)
+
+
 type CommandMode = Literal["foreground", "background"]

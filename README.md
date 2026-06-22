@@ -14,6 +14,7 @@ examples, source registries, datasets, and dataset conversion workflows.
 - Build dry-run LeRobot commands from structured MCP arguments.
 - Run LeRobot commands as foreground calls or managed background jobs.
 - Inspect LeRobot dataset metadata without importing heavy robotics dependencies at MCP startup.
+- Inspect policy/model repo metadata for observation, image, state, and action contract hints.
 - Optionally use Hub auth from your existing environment.
 - Convert robotics datasets into LeRobot-compatible formats.
 - Search datasets by robot, format, task, size, episode count, and compatibility hints.
@@ -54,13 +55,13 @@ Advanced install controls:
 
 ### Codex
 
-Add the local stdio MCP server with the Codex CLI:
+Recommended:
 
 ```bash
 codex mcp add lerobot-mcp -- lerobot-mcp
 ```
 
-Or add it manually to `~/.codex/config.toml`:
+Manual fallback:
 
 ```toml
 [mcp_servers.lerobot_mcp]
@@ -69,25 +70,21 @@ startup_timeout_sec = 20
 tool_timeout_sec = 3600
 ```
 
-Restart Codex after changing MCP config. In the Codex TUI, run `/mcp` to verify the server is loaded.
-Then ask Codex: "List LeRobot commands."
+Restart Codex, run `/mcp`, then ask: "List LeRobot commands."
 
 ### Claude Code
-
-Add the local stdio MCP server with Claude Code:
 
 ```bash
 claude mcp add lerobot-mcp -- lerobot-mcp
 ```
 
-If you are running from a checkout instead of a tool install:
+From a checkout:
 
 ```bash
 claude mcp add lerobot-mcp -- /path/to/lerobot-mcp/.venv/bin/lerobot-mcp
 ```
 
-After adding the server, restart Claude Code and run `/mcp` to verify the server is connected.
-Then ask Claude: "Show `lerobot_capabilities`."
+Restart Claude Code, run `/mcp`, then ask: "Show `lerobot_capabilities`."
 
 Resolution order is: `LEROBOT_ROOT`, current project ancestors, managed checkout
 `~/.cache/lerobot-mcp/lerobot`, `~/hrl/lerobot`, then an installed `lerobot` package.
@@ -138,6 +135,8 @@ uv run lerobot-train --dataset.repo_id=lerobot/aloha_mobile_cabinet --policy.typ
   background jobs.
 - `lerobot_inspect_dataset_metadata`: summarize metadata for a local or Hub dataset.
 - `lerobot_hf_search_datasets`: search datasets by robot, format, size, task, tags, and demo fit.
+- `lerobot_inspect_policy_repo`: inspect a Hugging Face policy/model repo for config files, weights,
+  policy type, dataset/robot hints, FPS, and declared observation/action features.
 - `lerobot_convert_dataset_to_latest_format`: convert LeRobot v2.1 datasets to the current v3.0
   parquet layout.
 
@@ -201,6 +200,24 @@ Results include source, repo id, detected format, robot hints, tags, scale when 
 signals, and conversion hints.
 
 For offline or deterministic tests, set `FORGE_REGISTRY_PATH` to a local `datasets.json` registry.
+
+## Policy Repo Inspection
+
+Use policy inspection before wiring a real browser or simulator rollout. It does not import LeRobot or
+run inference; it reads Hub repo metadata and lightweight JSON config files.
+
+Example MCP arguments:
+
+```json
+{
+  "repo_id": "username/my-policy",
+  "include_raw_configs": false
+}
+```
+
+The result includes config/weight file presence, policy type, dataset and robot hints, FPS, declared
+input/output features, and classified `image_keys`, `state_keys`, and `action_keys`. Clients can use
+that to map camera captures and state vectors before starting an inference server.
 
 ## Development
 
