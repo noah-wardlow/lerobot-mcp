@@ -35,6 +35,16 @@ cd lerobot-mcp
 uv sync --extra dev
 ```
 
+With Docker:
+
+```bash
+docker build -t lerobot-mcp .
+docker run -i --rm lerobot-mcp
+```
+
+The image runs the MCP server over stdio, so any MCP client can launch it with
+`docker run -i --rm lerobot-mcp` as the command.
+
 ## MCP Quick Start
 
 Most users should use the LeRobot checkout they already have. Start your MCP client from inside that

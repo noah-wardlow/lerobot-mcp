@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add a `Dockerfile` and `.dockerignore` so the MCP server can run over stdio in a container and be
+  auto-inspected by MCP clients and registries.
+- Add a `glama.json` manifest and document the Docker run path in the README.
+
 ## 0.1.4
 
 - Trim redundant preview and generic helper tools from the public MCP surface.
