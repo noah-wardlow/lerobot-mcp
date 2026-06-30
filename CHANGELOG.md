@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.1.7
 
+- Only publish to PyPI when `pyproject.toml` declares a version that is not already on PyPI, so
+  pushes to `main` that do not bump the version no longer fail the publish workflow.
 - Add a `Dockerfile` and `.dockerignore` so the MCP server can run over stdio in a container and be
   auto-inspected by MCP clients and registries.
 - Add a `glama.json` manifest and document the Docker run path in the README.
