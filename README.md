@@ -1,7 +1,5 @@
 # lerobot-mcp
 
-[![lerobot-mcp MCP server](https://glama.ai/mcp/servers/noah-wardlow/lerobot-mcp/badges/score.svg)](https://glama.ai/mcp/servers/noah-wardlow/lerobot-mcp)
-
 MCP server for LeRobot workflows.
 
 `lerobot-mcp` gives MCP clients a structured, auditable interface over the current LeRobot CLI,

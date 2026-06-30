@@ -9,7 +9,6 @@
   agents get syntax, constraints, and defaults for each argument.
 - Add behavioral annotations (title, read-only / destructive / idempotent / open-world hints) to all
   tools, and expand tool docstrings with usage guidance on when to use each one.
-- Add the Glama score badge to the README.
 
 ## 0.1.4
 
