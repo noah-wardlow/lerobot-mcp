@@ -5,6 +5,11 @@
 - Add a `Dockerfile` and `.dockerignore` so the MCP server can run over stdio in a container and be
   auto-inspected by MCP clients and registries.
 - Add a `glama.json` manifest and document the Docker run path in the README.
+- Add a description to every tool parameter (100% input-schema description coverage) so clients and
+  agents get syntax, constraints, and defaults for each argument.
+- Add behavioral annotations (title, read-only / destructive / idempotent / open-world hints) to all
+  tools, and expand tool docstrings with usage guidance on when to use each one.
+- Add the Glama score badge to the README.
 
 ## 0.1.4
 
